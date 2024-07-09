@@ -42,10 +42,10 @@ const CSVUpload: React.FC<CSVUploadProps> = ({ onUpload }) => {
 
   return (
     <div>
-      <h2>CSV Upload</h2>
+      <h3>CSV Upload</h3>
       <input type="file" accept=".csv" onChange={handleFileUpload} />
       <div>
-        <h3>Uploaded CSV Data: </h3>
+        <h4>Uploaded CSV Data: </h4>
         <ul>
           {csvData.map((row, index) => (
             <li key={index}>{JSON.stringify(row)}</li>

@@ -22,6 +22,7 @@ const Home = (): ReactElement => {
   );
   const [recipients, setRecipients] = useState<string[][]>([]);
   const klaytn = window.klaytn ? window.klaytn : null;
+  const [totalTarnsferAmount, setTotalTransferAmount] = useState<number>(0);
 
   useEffect(() => {
     checkKaikasConnection();
@@ -107,6 +108,11 @@ const Home = (): ReactElement => {
 
   const handleCSVUpload = (data: string[][]) => {
     setRecipients(data);
+    const _totalTransferAmount = data.reduce(
+      (acc, cur) => acc + Number(cur[1]),
+      0
+    );
+    setTotalTransferAmount(_totalTransferAmount);
   };
 
   const handleSendTokens = async () => {
@@ -185,11 +191,16 @@ const Home = (): ReactElement => {
               placeholder="전송할 토큰의 계약주소"
               onChange={(e) => setTargetTokenAddress(e.target.value)}
             />
+
             <CSVUpload onUpload={handleCSVUpload} />
             {recipients.length > 0 && (
-              <button className="send-button" onClick={handleSendTokens}>
-                Send Tokens
-              </button>
+              <>
+                <h4>전송 대상 {recipients.length}명</h4>
+                <h4>전송 수량 {totalTarnsferAmount}개</h4>
+                <button className="send-button" onClick={handleSendTokens}>
+                  Send Tokens
+                </button>
+              </>
             )}
           </div>
         </div>
