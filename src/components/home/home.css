@@ -1,15 +1,12 @@
 .container {
     max-width: 800px;
-    margin: 0 auto;
-    margin-top: 20px;
+    margin: 20px auto;
     padding: 20px;
     background-color: #f0f0f0;
     border: 1px solid #ccc;
     border-radius: 8px;
-    height: 300px;
     display: flex;
     flex-direction: column;
-    align-items: center;
 }
 
 .wallet-connect-button {
@@ -37,7 +34,10 @@
 }
 
 .wallet-info-layer {
-    border: 1px solid red;
     width: 100%;
     height: 30px;
+}
+
+.token-address-input {
+    width: 100%;
 }

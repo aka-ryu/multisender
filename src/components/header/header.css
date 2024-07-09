@@ -29,3 +29,8 @@
   color: white;
   text-decoration: none;
 }
+
+.wallet-info-layer {
+  display: flex;
+  justify-content: space-between;
+}

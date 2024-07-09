@@ -1,7 +1,6 @@
 import { BrowserRouter as Router } from "react-router-dom";
 import AppRoutes from "./routes/appRoutes";
 import Header from "./components/header/header";
-import Footer from "./components/footer/footer";
 import "./App.css";
 
 function App() {
@@ -13,7 +12,6 @@ function App() {
           <AppRoutes />
         </Router>
       </main>
-      <Footer />
     </div>
   );
 }
