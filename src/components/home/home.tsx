@@ -71,7 +71,6 @@ const Home = (): ReactElement => {
         if (err) {
           console.error("Error fetching balance:", err);
         } else {
-          console.log(result);
           const _balance = Web3.utils.fromWei(result.result, "ether");
           if (Number(_balance) > 0) {
             setBalance(_balance);
@@ -107,7 +106,6 @@ const Home = (): ReactElement => {
   };
 
   const handleCSVUpload = (data: string[][]) => {
-    console.log("Uploaded asdasdads Data:", data);
     setRecipients(data);
   };
 
@@ -125,11 +123,6 @@ const Home = (): ReactElement => {
       targetTokenAddress
     );
 
-    const recipientAddresses = recipients.map((row) => row[0]);
-    const amounts = recipients.map((row) =>
-      Number(Web3.utils.toWei(row[1], "wei"))
-    );
-
     const multisenderABI = multiSenderABI;
 
     const multisenderAddress = "0x443af9ec99f513a7af11804011f50409dc279acb"; // 배포한 멀티샌더 컨트랙트 주소로 변경
@@ -139,17 +132,21 @@ const Home = (): ReactElement => {
       multisenderAddress
     );
 
+    const decimalsStr = await tokenContract.methods.decimals().call();
+    const decimals = Number(decimalsStr);
+
     try {
       const recipientAddresses = recipients.map((row) => row[0]);
-      const amounts = recipients.map((row) =>
-        Web3.utils.toWei(row[1], "lovelace")
-      );
+      const amounts = recipients.map((row) => {
+        const amount = BigInt(row[1]); // 문자열을 BigInt로 변환
+        const power = BigInt(10) ** BigInt(decimals); // 10의 decimals 제곱 계산
+        return amount * power;
+      });
+
+      const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
 
       await tokenContract.methods
-        .approve(
-          multisenderAddress,
-          Web3.utils.toWei("1000000000000000", "wei")
-        )
+        .approve(multisenderAddress, totalAmount.toString())
         .send({ from: account });
 
       const result = await multisenderContract.methods
