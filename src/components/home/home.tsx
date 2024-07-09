@@ -71,7 +71,13 @@ const Home = (): ReactElement => {
         if (err) {
           console.error("Error fetching balance:", err);
         } else {
-          setBalance(Web3.utils.fromWei(result.result, "ether"));
+          console.log(result);
+          const _balance = Web3.utils.fromWei(result.result, "ether");
+          if (Number(_balance) > 0) {
+            setBalance(_balance);
+          } else {
+            setBalance("0");
+          }
         }
       }
     );
@@ -133,10 +139,6 @@ const Home = (): ReactElement => {
       multisenderAddress
     );
 
-    console.log(multisenderABI);
-    console.log(multisenderAddress);
-    console.log(multisenderContract);
-
     try {
       const recipientAddresses = recipients.map((row) => row[0]);
       const amounts = recipients.map((row) =>
@@ -162,17 +164,17 @@ const Home = (): ReactElement => {
   };
 
   return (
-    <div className="container">
+    <div>
       {!account ? (
-        <>
+        <div className="non-login-container">
           <h1>Kaikas Wallet Connection</h1>
           <div className="wallet-connect-button" onClick={handleConnectKaikas}>
             <img className="kaikas-logo" src={KaikasLogo} alt="" />
             <p>Connect to Kaikas</p>
           </div>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="login-container">
           <div className="wallet-info-layer">
             <div className="chain-name">{chainName}</div>
             <div className="wallet-address">{account}</div>
@@ -193,7 +195,7 @@ const Home = (): ReactElement => {
               </button>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
