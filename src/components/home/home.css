@@ -1,4 +1,16 @@
-.container {
+.non-login-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.login-container {
     max-width: 800px;
     margin: 20px auto;
     padding: 20px;
@@ -21,7 +33,7 @@
     cursor: pointer;
 }
 
-.wallet-connect-button > p{
+.wallet-connect-button>p {
     color: #FFFFFF;
     margin-left: 10px;
     font-weight: bold;
