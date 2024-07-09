@@ -160,6 +160,7 @@ const Home = (): ReactElement => {
         .send({ from: account });
       console.log("Transaction successful:", result);
       alert("Transaction successful");
+      window.location.reload();
     } catch (error) {
       console.error("Transaction failed:", error);
       alert("Transaction failed");
