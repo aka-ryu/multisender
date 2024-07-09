@@ -32,6 +32,7 @@ const CSVUpload: React.FC<CSVUploadProps> = ({ onUpload }) => {
     });
 
     if (data.length > 0 && data[data.length - 1].length === 0) {
+      data.shift();
       data.pop();
     }
 
@@ -44,7 +45,7 @@ const CSVUpload: React.FC<CSVUploadProps> = ({ onUpload }) => {
       <h2>CSV Upload</h2>
       <input type="file" accept=".csv" onChange={handleFileUpload} />
       <div>
-        <h3>Uploaded CSV Data:</h3>
+        <h3>Uploaded CSV Data: </h3>
         <ul>
           {csvData.map((row, index) => (
             <li key={index}>{JSON.stringify(row)}</li>
