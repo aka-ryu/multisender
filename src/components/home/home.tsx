@@ -137,12 +137,55 @@ const Home = (): ReactElement => {
     try {
       const _caver = new Caver(klaytn);
 
+      const web3 = new Web3(klaytn);
+
+      const tokenContract = new web3.eth.Contract(
+        testTokenABI as any,
+        targetTokenAddress!
+      );
+      const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+      const multisenderContract = new caver.klay.Contract(
+        multiSenderABI as any,
+        multisenderAddress
+      );
+
+      const decimalsStr = await tokenContract.methods.decimals().call();
+      const decimals = Number(decimalsStr);
+
+      const recipientAddresses = recipients.map((row) => row[0]);
+      const amounts = recipients.map((row) => {
+        const amount = BigInt(row[1]); // 문자열을 BigInt로 변환
+        const power = BigInt(10) ** BigInt(decimals); // 10의 decimals 제곱 계산
+        return amount * power;
+      });
+
+      const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
+
+      const price = await caver.klay.getGasPrice();
+      setGasPrice(price);
+      // Approve transaction object
+      const approveTransaction = {
+        from: account,
+        to: targetTokenAddress,
+        data: tokenContract.methods
+          .approve(multisenderAddress, totalAmount.toString())
+          .encodeABI(),
+        gas: price,
+      };
+
+      // Multisend transaction object
+      const multisendTransaction = {
+        from: account,
+        to: multisenderAddress,
+        data: multisenderContract.methods
+          .multisendToken(targetTokenAddress, recipientAddresses, amounts)
+          .encodeABI(),
+        gas: price,
+      };
+
       console.log(await _caver.rpc.net.getNetworkId());
-      const price = await getGasPrice(_caver);
       console.log(price, "price");
 
-      const { approveTransaction, multisendTransaction } =
-        await createTransactions();
       console.log(
         approveTransaction,
         multisendTransaction,
@@ -155,6 +198,10 @@ const Home = (): ReactElement => {
 
         setApproveGasUsed(approveGas);
 
+        const multisendGas2 = await multisenderContract.methods
+          .multisendToken(targetTokenAddress, recipientAddresses, amounts)
+          .estimateGas({ from: account });
+        console.log(multisendGas2, " multisendGas2");
         const multisendGas = await estimateGas(multisendTransaction, caver);
         console.log(multisendGas, "multisendGas");
         setMultisendGasUsed(multisendGas);
@@ -173,56 +220,6 @@ const Home = (): ReactElement => {
     } catch (error) {
       alert("예상수수료 측정중 오류발생");
     }
-  };
-
-  const createTransactions = async () => {
-    alert("web3방식");
-    const web3 = new Web3(klaytn);
-
-    const tokenContract = new web3.eth.Contract(
-      testTokenABI as any,
-      targetTokenAddress!
-    );
-    const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
-    const multisenderContract = new caver.klay.Contract(
-      multiSenderABI as any,
-      multisenderAddress
-    );
-
-    const decimalsStr = await tokenContract.methods.decimals().call();
-    const decimals = Number(decimalsStr);
-
-    const recipientAddresses = recipients.map((row) => row[0]);
-    const amounts = recipients.map((row) => {
-      const amount = BigInt(row[1]); // 문자열을 BigInt로 변환
-      const power = BigInt(10) ** BigInt(decimals); // 10의 decimals 제곱 계산
-      return amount * power;
-    });
-
-    const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
-
-    const price = await caver.klay.getGasPrice();
-    // Approve transaction object
-    const approveTransaction = {
-      from: account,
-      to: targetTokenAddress,
-      data: tokenContract.methods
-        .approve(multisenderAddress, totalAmount.toString())
-        .encodeABI(),
-      gas: price,
-    };
-
-    // Multisend transaction object
-    const multisendTransaction = {
-      from: account,
-      to: multisenderAddress,
-      data: multisenderContract.methods
-        .multisendToken(targetTokenAddress, recipientAddresses, amounts)
-        .encodeABI(),
-      gas: price,
-    };
-
-    return { approveTransaction, multisendTransaction };
   };
 
   // 파일 업로드 처리
