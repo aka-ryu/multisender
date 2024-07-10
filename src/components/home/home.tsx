@@ -28,6 +28,11 @@ const Home = (): ReactElement => {
   const [invaildData, setInvaildData] = useState<string[][]>([]);
   const [vaildTargetCount, setVaildTargetCount] = useState<number>(0);
   const [totalTransferAmount, setTotalTransferAmount] = useState<number>(0);
+  const [gasPrice, setGasPrice] = useState<string>("0");
+  const [approveGasUsed, setApproveGasUsed] = useState<number>(0);
+  const [multisendGasUsed, setMultisendGasUsed] = useState<number>(0);
+  const [totalFee, setTotalFee] = useState<string>("0");
+  const [feeLoading, setFeeLoading] = useState<boolean>(false);
 
   useEffect(() => {
     checkKaikasConnection();
@@ -52,6 +57,89 @@ const Home = (): ReactElement => {
       klaytn.autoRefreshOnNetworkChange = true;
     }
   }, [klaytn]);
+
+  const getGasPrice = async () => {
+    const price = await caver.klay.getGasPrice();
+    setGasPrice(price);
+    return price;
+  };
+
+  const estimateGas = async (transaction: any) => {
+    const estimatedGas = await caver.klay.estimateGas(transaction);
+    return estimatedGas;
+  };
+
+  const calculateFee = async () => {
+    if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
+      alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
+      return;
+    }
+    const price = await getGasPrice();
+    const { approveTransaction, multisendTransaction } =
+      await createTransactions();
+
+    if (approveTransaction && multisendTransaction) {
+      const approveGas = await estimateGas(approveTransaction);
+      setApproveGasUsed(approveGas);
+
+      const multisendGas = await estimateGas(multisendTransaction);
+      setMultisendGasUsed(multisendGas);
+
+      const totalGas = approveGas + multisendGas;
+      const estimatedFeeInPeb = BigInt(totalGas) * BigInt(price);
+      const estimatedFeeInKlay = caver.utils.fromPeb(
+        estimatedFeeInPeb.toString(),
+        "KLAY"
+      );
+      setTotalFee(estimatedFeeInKlay);
+    }
+  };
+
+  const createTransactions = async () => {
+    const web3 = new Web3(klaytn);
+
+    const tokenContract = new web3.eth.Contract(
+      testTokenABI as any,
+      targetTokenAddress!
+    );
+    const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+    const multisenderContract = new web3.eth.Contract(
+      multiSenderABI as any,
+      multisenderAddress
+    );
+
+    const decimalsStr = await tokenContract.methods.decimals().call();
+    const decimals = Number(decimalsStr);
+
+    const recipientAddresses = recipients.map((row) => row[0]);
+    const amounts = recipients.map((row) => {
+      const amount = BigInt(row[1]); // 문자열을 BigInt로 변환
+      const power = BigInt(10) ** BigInt(decimals); // 10의 decimals 제곱 계산
+      return amount * power;
+    });
+
+    const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
+
+    // Approve transaction object
+    const approveTransaction = {
+      from: account,
+      to: targetTokenAddress,
+      data: tokenContract.methods
+        .approve(multisenderAddress, totalAmount.toString())
+        .encodeABI(),
+    };
+
+    // Multisend transaction object
+    const multisendTransaction = {
+      from: account,
+      to: multisenderAddress,
+      data: multisenderContract.methods
+        .multisendToken(targetTokenAddress, recipientAddresses, amounts)
+        .encodeABI(),
+    };
+
+    return { approveTransaction, multisendTransaction };
+  };
 
   // 파일 업로드 처리
   const handleFileUpload = useCallback(
@@ -260,11 +348,31 @@ const Home = (): ReactElement => {
               onChange={(e) => setTargetTokenAddress(e.target.value)}
             />
             {csvData.length > 0 && (
-              <>
+              <div className="send-layer">
+                <div>
+                  <button onClick={calculateFee}>예상 수수료 계산</button>
+
+                  {feeLoading ? (
+                    <>
+                      <div className="spinner"></div>
+                    </>
+                  ) : (
+                    <>
+                      <p>가스 가격: {gasPrice}</p>
+                      <p>Approve 가스 사용량: {approveGasUsed}</p>
+                      <p>Multisend 가스 사용량: {multisendGasUsed}</p>
+                      <p>총 예상 수수료: {totalFee} KLAY</p>
+                      <p className="fee-warning">
+                        실제 수수료는 다를수 있습니다 kaikas에서 승인전 확인해
+                        주세요
+                      </p>
+                    </>
+                  )}
+                </div>
                 <button className="send-button" onClick={handleSendTokens}>
                   전송하기
                 </button>
-              </>
+              </div>
             )}
 
             <div>
