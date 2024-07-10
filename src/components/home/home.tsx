@@ -42,13 +42,11 @@ const Home = (): ReactElement => {
   const [feeLoading, setFeeLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log("1");
     const init = async () => {
       // const _kaikasEnabled = await klaytn._kaikas.isEnabled();
       if (typeof window.klaytn !== "undefined") {
         const _kaikasApproved = await klaytn._kaikas.isApproved();
         const _kaikasUnlocked = await klaytn._kaikas.isUnlocked();
-        console.log(_kaikasApproved, _kaikasUnlocked);
         setIsKaikasLogin(_kaikasApproved && _kaikasUnlocked);
       }
     };
@@ -57,7 +55,6 @@ const Home = (): ReactElement => {
   }, []);
 
   useEffect(() => {
-    console.log("2");
     if (isKaikasLogin) {
       if (klaytn.selectedAddress !== null) {
         setIsKaikasLogin(true);
@@ -290,7 +287,6 @@ const Home = (): ReactElement => {
   };
 
   const handleConnectKaikas = async () => {
-    console.log(klaytn);
     if (!klaytn) {
       alert("kaikas가 없습니다.");
       return;
@@ -318,7 +314,6 @@ const Home = (): ReactElement => {
   };
 
   const handleSendTokens = async () => {
-    console.log(account, targetTokenAddress, klaytn, recipients.length);
     if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
       alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
       return;
