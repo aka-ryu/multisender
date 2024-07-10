@@ -45,6 +45,10 @@ const Home = (): ReactElement => {
     undefined
   );
   const [fileName, setFileName] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [targetKlaytnScope, setTargetKlaytnScope] = useState<
+    string | undefined
+  >(undefined);
 
   useEffect(() => {
     const init = async () => {
@@ -168,6 +172,8 @@ const Home = (): ReactElement => {
 
       const decimalsStr = await tokenContract.methods.decimals().call();
       const decimals = Number(decimalsStr);
+
+      console.log(recipients.length);
 
       const recipientAddresses = recipients.map((row) => row[0]);
       const amounts = recipients.map((row) => {
@@ -305,7 +311,6 @@ const Home = (): ReactElement => {
   const handleFileUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      console.log(file);
       setFileName(file!.name);
       if (file) {
         const reader = new FileReader();
@@ -369,6 +374,7 @@ const Home = (): ReactElement => {
 
   const getKlaytnBalance = async (_walletAddress: any) => {
     if (!klaytn) return;
+    console.log("실행한다ㅏ");
 
     klaytn.sendAsync(
       {
@@ -381,10 +387,13 @@ const Home = (): ReactElement => {
         if (err) {
           console.error("Error fetching balance:", err);
         } else {
+          console.log("dd?");
           const _balance = Web3.utils.fromWei(result.result, "ether");
           if (Number(_balance) > 0) {
+            console.log("돈있어");
             setBalance(_balance);
           } else {
+            console.log("돈없어");
             setBalance("0");
           }
         }
@@ -472,7 +481,13 @@ const Home = (): ReactElement => {
         .multisendToken(targetTokenAddress, recipientAddresses, amounts)
         .send({ from: account });
       console.log("Transaction successful:", result);
+      setTxHash(result.transactionHash);
+      const targetScope =
+        klaytn.networkVersion == "8217"
+          ? `https://klaytnscope.com/tx/${result.transactionHash}`
+          : `https://baobab.klaytnscope.com/tx/${result.transactionHash}`;
       setTransferResult("성공");
+      setTargetKlaytnScope(targetScope);
       alert("Transaction successful");
     } catch (error) {
       console.error("Transaction failed:", error);
@@ -583,7 +598,18 @@ const Home = (): ReactElement => {
                   )}
                 </div>
                 {transferResult ? (
-                  <p className="result">{transferResult}</p>
+                  <>
+                    <p className="result">{transferResult}</p>
+                    {txHash && (
+                      <a
+                        href={targetKlaytnScope}
+                        target="_blank"
+                        className="tx-hash"
+                      >
+                        {txHash}
+                      </a>
+                    )}
+                  </>
                 ) : (
                   <>
                     <button className="send-button" onClick={handleSendTokens}>
