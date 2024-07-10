@@ -117,36 +117,47 @@ const Home = (): ReactElement => {
   //   }
   // }, [klaytn]);
 
-  const getGasPrice = async (_caver: Caver) => {
-    const price = await _caver.klay.getGasPrice();
-    setGasPrice(price);
-    return price;
-  };
-
-  const estimateGas = async (transaction: any, _caver: Caver) => {
-    const web3 = new Web3(klaytn);
+  const estimateGasWeb3 = async (transaction: any, _caver: Caver) => {
+    const web3 = new Web3(window.klaytn);
     const estimatedGas = await web3.eth.estimateGas(transaction);
     return Number(estimatedGas);
   };
 
-  const calculateFee = async () => {
+  const estimateGasKlay = async (transaction: any, _caver: Caver) => {
+    const estimatedGas = await _caver.klay.estimateGas(transaction);
+    return Number(estimatedGas);
+  };
+
+  const feeReset = () => {
+    setGasPrice("0");
+    setApproveGasUsed(0);
+    setMultisendGasUsed(0);
+    setTotalFee("0");
+  };
+
+  const calculateFeeWeb3 = async () => {
     if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
       alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
       return;
     }
+    feeReset();
 
     try {
-      const _caver = new Caver(klaytn);
-
-      const web3 = new Web3(klaytn);
+      const web3 = new Web3(window.klaytn);
 
       const tokenContract = new web3.eth.Contract(
         testTokenABI as any,
         targetTokenAddress!
       );
       // const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
-      const multisenderAddress = "0x13d2F94261C4883612a100821196193A3FaA8D14";
-      const multisenderContract = new caver.klay.Contract(
+      const multisenderAddress =
+        klaytn.networkVersion == "1001"
+          ? "0x443af9ec99f513a7af11804011f50409dc279acb"
+          : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
+
+      console.log(multisenderAddress);
+
+      const multisenderContract = new web3.eth.Contract(
         multiSenderABI as any,
         multisenderAddress
       );
@@ -163,9 +174,9 @@ const Home = (): ReactElement => {
 
       const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
 
-      const price = await caver.klay.getGasPrice();
+      const price = (await web3.eth.getGasPrice()).toString();
       setGasPrice(price);
-      // Approve transaction object
+
       const approveTransaction = {
         from: account,
         to: targetTokenAddress,
@@ -175,7 +186,6 @@ const Home = (): ReactElement => {
         gas: price,
       };
 
-      // Multisend transaction object
       const multisendTransaction = {
         from: account,
         to: multisenderAddress,
@@ -185,34 +195,101 @@ const Home = (): ReactElement => {
         gas: price,
       };
 
-      console.log(await _caver.rpc.net.getNetworkId());
-      console.log(price, "price");
-
-      console.log(
-        approveTransaction,
-        multisendTransaction,
-        "approveTransaction, multisendTransaction"
-      );
-
       if (approveTransaction && multisendTransaction) {
-        const approveGas = await estimateGas(approveTransaction, caver);
-        console.log(approveGas, "approveGas");
+        const approveGas = await estimateGasWeb3(approveTransaction, caver);
 
         setApproveGasUsed(approveGas);
 
-        const multisendGas = await estimateGas(multisendTransaction, caver);
-        console.log(multisendGas, "multisendGas");
+        const multisendGas = await estimateGasWeb3(multisendTransaction, caver);
         setMultisendGasUsed(multisendGas);
 
         const totalGas = approveGas + multisendGas;
-        console.log(totalGas, "totalGas");
         const estimatedFeeInPeb = BigInt(totalGas) * BigInt(price);
-        console.log(estimatedFeeInPeb, "estimatedFeeInPeb");
         const estimatedFeeInKlay = caver.utils.fromPeb(
           estimatedFeeInPeb.toString(),
           "KLAY"
         );
-        console.log(estimatedFeeInKlay, "estimatedFeeInKlay");
+        setTotalFee(estimatedFeeInKlay);
+      }
+    } catch (error) {
+      alert("예상수수료 측정중 오류발생");
+    }
+  };
+
+  const calculateFeeKlay = async () => {
+    if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
+      alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
+      return;
+    }
+
+    feeReset();
+
+    const _caver = new Caver(window.klaytn);
+
+    try {
+      const tokenContract = new _caver.contract(
+        testTokenABI as any,
+        targetTokenAddress!
+      );
+      // const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+      const multisenderAddress =
+        klaytn.networkVersion == "1001"
+          ? "0x443af9ec99f513a7af11804011f50409dc279acb"
+          : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
+
+      console.log(multisenderAddress);
+      const multisenderContract = new _caver.contract(
+        multiSenderABI as any,
+        multisenderAddress
+      );
+
+      const decimalsStr = await tokenContract.methods.decimals().call();
+      const decimals = Number(decimalsStr);
+
+      const recipientAddresses = recipients.map((row) => row[0]);
+      const amounts = recipients.map((row) => {
+        const amount = BigInt(row[1]); // 문자열을 BigInt로 변환
+        const power = BigInt(10) ** BigInt(decimals); // 10의 decimals 제곱 계산
+        return amount * power;
+      });
+
+      const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
+
+      const price = await _caver.klay.getGasPrice();
+      setGasPrice(price);
+
+      const approveTransaction = {
+        from: account,
+        to: targetTokenAddress,
+        data: tokenContract.methods
+          .approve(multisenderAddress, totalAmount.toString())
+          .encodeABI(),
+        gas: price,
+      };
+
+      const multisendTransaction = {
+        from: account,
+        to: multisenderAddress,
+        data: multisenderContract.methods
+          .multisendToken(targetTokenAddress, recipientAddresses, amounts)
+          .encodeABI(),
+        gas: price,
+      };
+
+      if (approveTransaction && multisendTransaction) {
+        const approveGas = await estimateGasKlay(approveTransaction, caver);
+
+        setApproveGasUsed(approveGas);
+
+        const multisendGas = await estimateGasKlay(multisendTransaction, caver);
+        setMultisendGasUsed(multisendGas);
+
+        const totalGas = approveGas + multisendGas;
+        const estimatedFeeInPeb = BigInt(totalGas) * BigInt(price);
+        const estimatedFeeInKlay = caver.utils.fromPeb(
+          estimatedFeeInPeb.toString(),
+          "KLAY"
+        );
         setTotalFee(estimatedFeeInKlay);
       }
     } catch (error) {
@@ -341,7 +418,7 @@ const Home = (): ReactElement => {
       alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
       return;
     }
-    const web3 = new Web3(klaytn);
+    const web3 = new Web3(window.klaytn);
 
     const tokenContractABI = testTokenABI;
 
@@ -352,8 +429,12 @@ const Home = (): ReactElement => {
 
     const multisenderABI = multiSenderABI;
 
-    const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+    const multisenderAddress =
+      klaytn.networkVersion == "1001"
+        ? "0x443af9ec99f513a7af11804011f50409dc279acb"
+        : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
 
+    console.log(multisenderAddress);
     const multisenderContract = new web3.eth.Contract(
       multisenderABI as any,
       multisenderAddress
@@ -412,8 +493,10 @@ const Home = (): ReactElement => {
           </div>
           <div className="transfer-layer">
             <h4>
-              멀티샌더 컨트랙트 {process.env.REACT_APP_TARGET_MULTISENDER_CHAIN}{" "}
-              {process.env.REACT_APP_MULTISENDER_CONTRACT}
+              멀티샌더 컨트랙트 {chainId == "1001" ? "Baobab" : "Cypress"}{" "}
+              {chainId == "1001"
+                ? "0x443af9ec99f513a7af11804011f50409dc279acb"
+                : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90"}
             </h4>
             <label htmlFor="inputField">토큰의 계약주소 입력</label>
             <input
@@ -425,7 +508,13 @@ const Home = (): ReactElement => {
             {csvData.length > 0 && (
               <div className="send-layer">
                 <div>
-                  <button onClick={calculateFee}>예상 수수료 계산 web3</button>
+                  <button onClick={calculateFeeWeb3}>
+                    예상 수수료 계산 web3
+                  </button>
+
+                  <button onClick={calculateFeeKlay}>
+                    예상 수수료 계산 klay
+                  </button>
 
                   {feeLoading ? (
                     <>
@@ -438,8 +527,44 @@ const Home = (): ReactElement => {
                       <p>Multisend 가스 사용량: {multisendGasUsed}</p>
                       <p>총 예상 수수료: {totalFee} KLAY</p>
                       <p className="fee-warning">
-                        실제 수수료는 다를수 있습니다 kaikas에서 승인전 확인해
-                        주세요
+                        서버상태에 따라 측정이 어려울수 있습니다.
+                        <br />
+                        <br />
+                        예상수수료계산에 web3, klay 버튼은 각 예상수수료 계산
+                        로직을 각 로직을 <br />
+                        klay라이브러리, web3라이브러리로 계산한 것입니다.
+                        <br />
+                        <br />
+                        실제 예상수수료의 정확도는 보장되지 않으며 실제
+                        kaikas에서 승인시 확인이 필요합니다.
+                        <br />
+                        <br />
+                        전송시 kaikas 앱에서 두번의 승인과 수수료확인을 하게
+                        됩니다.
+                        <br />
+                        1단계 : approve 승인
+                        <br />
+                        2단계 : multisender 승인
+                        <br />
+                        이중 1단계의 수수료는 매우 적은편이며 중요하게
+                        봐야할것은 2단계의 수수료입니다.
+                        <br />
+                        <br />
+                        개발단계에서 멀티샌더 전송대상 수에 따른 2단계 수수료를
+                        측정하였고 내용은 이와 같습니다.
+                        <br />
+                        <br />
+                        100명 0.133185KLAY (1명기준 0.00133185)
+                        <br />
+                        300명 0.351407KLAY (1명기준 0.00117135)
+                        <br />
+                        600명 0.679004KLAY (1명기준 0.00113167)
+                        <br />
+                        1000명 1.117386KLAY (1명 기준 0.00111738)
+                        <br />
+                        <br />
+                        대상이 많을수록 인당 수수료는 소폭 감소하지만 무의미한
+                        수준이며 거진 정비례하여 증가함을 확인하였습니다.
                       </p>
                     </>
                   )}
