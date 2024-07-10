@@ -53,3 +53,11 @@
 .token-address-input {
     width: 100%;
 }
+
+.send-button {
+    margin-top: 20px;
+}
+
+.invaild-target {
+    color: red
+}

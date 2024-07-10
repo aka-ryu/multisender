@@ -1,10 +1,10 @@
-import React, { ReactElement, useEffect, useState } from "react";
+import React, { ReactElement, useEffect, useState, useCallback } from "react";
 import "./home.css";
 import KaikasLogo from "../../assets/images/kaikas-logo.png";
 import Web3 from "web3";
-import CSVUpload from "../CSVUpload/csvUpload";
 import multiSenderABI from "../../config/multisenderABI.json";
 import testTokenABI from "../../config/testTokenABI.json";
+import Caver from "caver-js";
 
 declare global {
   interface Window {
@@ -21,8 +21,13 @@ const Home = (): ReactElement => {
     null
   );
   const [recipients, setRecipients] = useState<string[][]>([]);
+
   const klaytn = window.klaytn ? window.klaytn : null;
-  const [totalTarnsferAmount, setTotalTransferAmount] = useState<number>(0);
+  const caver = new Caver(klaytn);
+  const [csvData, setCsvData] = useState<string[][]>([]);
+  const [invaildData, setInvaildData] = useState<string[][]>([]);
+  const [vaildTargetCount, setVaildTargetCount] = useState<number>(0);
+  const [totalTransferAmount, setTotalTransferAmount] = useState<number>(0);
 
   useEffect(() => {
     checkKaikasConnection();
@@ -47,6 +52,70 @@ const Home = (): ReactElement => {
       klaytn.autoRefreshOnNetworkChange = true;
     }
   }, [klaytn]);
+
+  // 파일 업로드 처리
+  const handleFileUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            processData(reader.result);
+          }
+        };
+        reader.readAsText(file);
+      }
+    },
+    []
+  );
+
+  const processData = (csv: string) => {
+    const rows = csv.split("\n");
+    const data = rows.map((row) => {
+      const rowValues = row.split(",").map((value) => value.trim());
+      return rowValues.filter((value) => value !== "");
+    });
+
+    if (data.length > 0 && data[data.length - 1].length === 0) {
+      data.shift();
+      data.pop();
+    }
+
+    let wrongData: string[][] = [];
+    let filteredData = data.filter((row) => {
+      if (caver.utils.isAddress(row[0])) {
+        return row;
+      } else {
+        wrongData.push(row);
+      }
+    });
+
+    const _totalTransferAmount = filteredData.reduce(
+      (acc, cur) => acc + Number(cur[1]),
+      0
+    );
+    setTotalTransferAmount(_totalTransferAmount);
+    setInvaildData(wrongData);
+
+    setCsvData(filteredData);
+    handleCSVUpload(filteredData);
+  };
+
+  const handleReset = () => {
+    // setCsvData([]);
+    // setInvaildData([]);
+    // setTotalTransferAmount(0);
+    // setRecipients([]);
+    // const input = document.querySelector(
+    //   'input[type="file"]'
+    // ) as HTMLInputElement;
+    // if (input) {
+    //   input.value = "";
+    // }
+
+    window.location.reload();
+  };
 
   const updateChainName = (id: string | null) => {
     if (id == "1001") {
@@ -108,16 +177,11 @@ const Home = (): ReactElement => {
 
   const handleCSVUpload = (data: string[][]) => {
     setRecipients(data);
-    const _totalTransferAmount = data.reduce(
-      (acc, cur) => acc + Number(cur[1]),
-      0
-    );
-    setTotalTransferAmount(_totalTransferAmount);
   };
 
   const handleSendTokens = async () => {
     if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
-      alert("Kaikas wallet, token address, or CSV data is missing.");
+      alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
       return;
     }
     const web3 = new Web3(klaytn);
@@ -132,7 +196,6 @@ const Home = (): ReactElement => {
     const multisenderABI = multiSenderABI;
 
     const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
-    console.log(multisenderAddress);
 
     const multisenderContract = new web3.eth.Contract(
       multisenderABI as any,
@@ -161,7 +224,6 @@ const Home = (): ReactElement => {
         .send({ from: account });
       console.log("Transaction successful:", result);
       alert("Transaction successful");
-      window.location.reload();
     } catch (error) {
       console.error("Transaction failed:", error);
       alert("Transaction failed");
@@ -197,17 +259,61 @@ const Home = (): ReactElement => {
               placeholder="전송할 토큰의 계약주소"
               onChange={(e) => setTargetTokenAddress(e.target.value)}
             />
-
-            <CSVUpload onUpload={handleCSVUpload} />
-            {recipients.length > 0 && (
+            {csvData.length > 0 && (
               <>
-                <h4>전송 대상 {recipients.length}명</h4>
-                <h4>전송 수량 {totalTarnsferAmount}개</h4>
                 <button className="send-button" onClick={handleSendTokens}>
-                  Send Tokens
+                  전송하기
                 </button>
               </>
             )}
+
+            <div>
+              <h3>CSV Upload</h3>
+              {csvData.length > 0 ? (
+                <>
+                  <button onClick={handleReset}>초기화(새로고침)</button>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                  />
+                </>
+              )}
+              <div>
+                <>
+                  {invaildData.length > 0 && (
+                    <>
+                      <h4 className="invaild-target">
+                        잘못된 대상 : {invaildData.length}명
+                      </h4>
+                      <ul>
+                        {invaildData.map((row, index) => (
+                          <li key={index}>{JSON.stringify(row)}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+
+                <>
+                  {csvData.length > 0 && (
+                    <>
+                      <h4 className="vaild-target">
+                        유효한 대상 : {csvData.length}명 {totalTransferAmount}개
+                      </h4>
+                      <ul>
+                        {csvData.map((row, index) => (
+                          <li key={index}>{JSON.stringify(row)}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </>
+              </div>
+            </div>
           </div>
         </div>
       )}
