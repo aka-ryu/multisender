@@ -1,4 +1,10 @@
-import React, { ReactElement, useEffect, useState, useCallback } from "react";
+import React, {
+  ReactElement,
+  useEffect,
+  useState,
+  useCallback,
+  useLayoutEffect,
+} from "react";
 import "./home.css";
 import KaikasLogo from "../../assets/images/kaikas-logo.png";
 import Web3 from "web3";
@@ -14,8 +20,8 @@ declare global {
 
 const Home = (): ReactElement => {
   const [account, setAccount] = useState<string | null>(null);
+  const [isKaikasLogin, setIsKaikasLogin] = useState<boolean>(false);
   const [chainId, setChainId] = useState<string | null>(null);
-  const [chainName, setChainName] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
   const [targetTokenAddress, setTargetTokenAddress] = useState<string | null>(
     null
@@ -24,6 +30,7 @@ const Home = (): ReactElement => {
 
   const klaytn = window.klaytn ? window.klaytn : null;
   const caver = new Caver(klaytn);
+
   const [csvData, setCsvData] = useState<string[][]>([]);
   const [invaildData, setInvaildData] = useState<string[][]>([]);
   const [vaildTargetCount, setVaildTargetCount] = useState<number>(0);
@@ -35,28 +42,80 @@ const Home = (): ReactElement => {
   const [feeLoading, setFeeLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    checkKaikasConnection();
+    console.log("1");
+    const init = async () => {
+      // const _kaikasEnabled = await klaytn._kaikas.isEnabled();
+      if (typeof window.klaytn !== "undefined") {
+        const _kaikasApproved = await klaytn._kaikas.isApproved();
+        const _kaikasUnlocked = await klaytn._kaikas.isUnlocked();
+        console.log(_kaikasApproved, _kaikasUnlocked);
+        setIsKaikasLogin(_kaikasApproved && _kaikasUnlocked);
+      }
+    };
+
+    init();
   }, []);
 
   useEffect(() => {
-    updateChainName(chainId);
-    checkKaikasConnection();
-  }, [chainId]);
-
-  useEffect(() => {
-    if (klaytn) {
-      klaytn.on("networkChanged", (newNetworkVersion: string) => {
-        setChainId(newNetworkVersion);
-      });
-
-      klaytn.on("accountsChanged", (newAccounts: string[]) => {
-        setAccount(newAccounts[0]);
-        getKlaytnBalance(newAccounts[0]);
-      });
-
-      klaytn.autoRefreshOnNetworkChange = true;
+    console.log("2");
+    if (isKaikasLogin) {
+      if (klaytn.selectedAddress !== null) {
+        setIsKaikasLogin(true);
+        setChainId(klaytn.networkVersion);
+        setAccount(klaytn.selectedAddress);
+        getKlaytnBalance(klaytn.selectedAddress);
+      }
     }
-  }, [klaytn]);
+  }, [isKaikasLogin]);
+
+  if (typeof window.klaytn !== "undefined" && isKaikasLogin) {
+    // if (typeof window.klaytn !== "undefined") {
+    // Kaikas가 설치된 경우에만 이벤트 리스너 등록
+    klaytn.on("accountsChanged", function (accounts: any) {
+      console.log("계정변경 감지");
+      const _selectedAddress = klaytn.selectedAddress;
+      setAccount(_selectedAddress);
+      getKlaytnBalance(_selectedAddress);
+    });
+    klaytn.on("networkChanged", function (networkId: any) {
+      console.log("서버변경 감지");
+      setChainId(klaytn.networkVersion);
+      getKlaytnBalance(klaytn.selectedAddress);
+    });
+    klaytn.on("disconnected", function () {
+      console.log("kaikas 잠금");
+      setIsKaikasLogin(false);
+    });
+  }
+
+  // useEffect(() => {
+  //   if (klaytn._kaikas.isEnabled()) {
+  //     checkKaikasConnection();
+  //     setChainId(klaytn.networkVersion);
+  //     setAccount(klaytn.selectedAddress);
+  //   }
+  // }, []);
+
+  // useEffect(() => {
+  //   updateChainName(chainId);
+  //   //checkKaikasConnection();
+  //   getKlaytnBalance(account);
+  // }, [chainId, account]);
+
+  // useEffect(() => {
+  //   if (klaytn) {
+  //     klaytn.on("networkChanged", (newNetworkVersion: string) => {
+  //       setChainId(newNetworkVersion);
+  //     });
+
+  //     klaytn.on("accountsChanged", (newAccounts: string[]) => {
+  //       setAccount(newAccounts[0]);
+  //       getKlaytnBalance(newAccounts[0]);
+  //     });
+
+  //     klaytn.autoRefreshOnNetworkChange = true;
+  //   }
+  // }, [klaytn]);
 
   const getGasPrice = async () => {
     const price = await caver.klay.getGasPrice();
@@ -205,16 +264,6 @@ const Home = (): ReactElement => {
     window.location.reload();
   };
 
-  const updateChainName = (id: string | null) => {
-    if (id == "1001") {
-      setChainName("Baobab");
-    } else if (id == "8217") {
-      setChainName("Cypress");
-    } else {
-      setChainName("Unknown Network");
-    }
-  };
-
   const getKlaytnBalance = async (_walletAddress: any) => {
     if (!klaytn) return;
 
@@ -240,23 +289,24 @@ const Home = (): ReactElement => {
     );
   };
 
-  const checkKaikasConnection = async () => {
-    if (!klaytn) return;
-
-    const isUnlocked = await klaytn._kaikas.isUnlocked();
-    if (isUnlocked) {
-      handleConnectKaikas();
-    }
-  };
-
   const handleConnectKaikas = async () => {
-    if (!klaytn) return;
-
+    console.log(klaytn);
+    if (!klaytn) {
+      alert("kaikas가 없습니다.");
+      return;
+    }
+    if (isKaikasLogin) {
+      alert("이미 로그인함 리턴한다");
+      return;
+    }
     try {
-      const accounts = await klaytn.enable();
-      setAccount(accounts[0]);
-      setChainId(klaytn.networkVersion);
-      getKlaytnBalance(accounts[0]);
+      await klaytn.enable();
+      if (klaytn.selectedAddress !== null) {
+        setIsKaikasLogin(true);
+        setChainId(klaytn.networkVersion);
+        setAccount(klaytn.selectedAddress);
+        getKlaytnBalance(klaytn.selectedAddress);
+      }
     } catch (error) {
       console.error("Error connecting Kaikas:", error);
       alert("Error connecting Kaikas wallet");
@@ -268,6 +318,7 @@ const Home = (): ReactElement => {
   };
 
   const handleSendTokens = async () => {
+    console.log(account, targetTokenAddress, klaytn, recipients.length);
     if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
       alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
       return;
@@ -320,7 +371,7 @@ const Home = (): ReactElement => {
 
   return (
     <div>
-      {!account ? (
+      {!isKaikasLogin ? (
         <div className="non-login-container">
           <h1>Kaikas Wallet Connection</h1>
           <div className="wallet-connect-button" onClick={handleConnectKaikas}>
@@ -331,7 +382,13 @@ const Home = (): ReactElement => {
       ) : (
         <div className="login-container">
           <div className="wallet-info-layer">
-            <div className="chain-name">{chainName}</div>
+            <div className="chain-name">
+              {chainId == "1001"
+                ? "Baobab Testnet"
+                : chainId == "8217"
+                ? "Cypress Mainnet"
+                : "Unknown Chain"}
+            </div>
             <div className="wallet-address">{account}</div>
             <div className="main-token-balance">{balance} KLAY</div>
           </div>
