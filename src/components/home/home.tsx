@@ -131,22 +131,33 @@ const Home = (): ReactElement => {
       return;
     }
     const price = await getGasPrice();
+    console.log(price, "price");
     const { approveTransaction, multisendTransaction } =
       await createTransactions();
+    console.log(
+      approveTransaction,
+      multisendTransaction,
+      "approveTransaction, multisendTransaction"
+    );
 
     if (approveTransaction && multisendTransaction) {
       const approveGas = await estimateGas(approveTransaction);
+      console.log(approveGas, "approveGas");
       setApproveGasUsed(approveGas);
 
       const multisendGas = await estimateGas(multisendTransaction);
+      console.log(multisendGas, "multisendGas");
       setMultisendGasUsed(multisendGas);
 
       const totalGas = approveGas + multisendGas;
+      console.log(totalGas, "totalGas");
       const estimatedFeeInPeb = BigInt(totalGas) * BigInt(price);
+      console.log(estimatedFeeInPeb, "estimatedFeeInPeb");
       const estimatedFeeInKlay = caver.utils.fromPeb(
         estimatedFeeInPeb.toString(),
         "KLAY"
       );
+      console.log(estimatedFeeInKlay, "estimatedFeeInKlay");
       setTotalFee(estimatedFeeInKlay);
     }
   };
