@@ -334,7 +334,7 @@ const Home = (): ReactElement => {
 
     let wrongData: string[][] = [];
     let filteredData = data.filter((row) => {
-      if (caver.utils.isAddress(row[0])) {
+      if (caver.utils.isAddress(row[0]) && !isNaN(Number(row[1]))) {
         return row;
       } else {
         wrongData.push(row);
