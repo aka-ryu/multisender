@@ -30,6 +30,7 @@ const Home = (): ReactElement => {
 
   const klaytn = window.klaytn ? window.klaytn : null;
   const caver = new Caver(klaytn);
+  const [caverInstance, setCaverInstance] = useState<Caver | null>(null);
 
   const [csvData, setCsvData] = useState<string[][]>([]);
   const [invaildData, setInvaildData] = useState<string[][]>([]);
@@ -61,6 +62,7 @@ const Home = (): ReactElement => {
         setChainId(klaytn.networkVersion);
         setAccount(klaytn.selectedAddress);
         getKlaytnBalance(klaytn.selectedAddress);
+        setCaverInstance(window.klaytn);
       }
     }
   }, [isKaikasLogin]);
@@ -78,6 +80,7 @@ const Home = (): ReactElement => {
       console.log("서버변경 감지");
       setChainId(klaytn.networkVersion);
       getKlaytnBalance(klaytn.selectedAddress);
+      setCaverInstance(window.klaytn);
     });
     klaytn.on("disconnected", function () {
       console.log("kaikas 잠금");
@@ -114,14 +117,14 @@ const Home = (): ReactElement => {
   //   }
   // }, [klaytn]);
 
-  const getGasPrice = async () => {
-    const price = await caver.klay.getGasPrice();
+  const getGasPrice = async (_caver: Caver) => {
+    const price = await _caver.klay.getGasPrice();
     setGasPrice(price);
     return price;
   };
 
-  const estimateGas = async (transaction: any) => {
-    const estimatedGas = await caver.klay.estimateGas(transaction);
+  const estimateGas = async (transaction: any, _caver: Caver) => {
+    const estimatedGas = await _caver.klay.estimateGas(transaction);
     return estimatedGas;
   };
 
@@ -130,39 +133,50 @@ const Home = (): ReactElement => {
       alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
       return;
     }
-    const price = await getGasPrice();
-    console.log(price, "price");
-    const { approveTransaction, multisendTransaction } =
-      await createTransactions();
-    console.log(
-      approveTransaction,
-      multisendTransaction,
-      "approveTransaction, multisendTransaction"
-    );
 
-    if (approveTransaction && multisendTransaction) {
-      const approveGas = await estimateGas(approveTransaction);
-      console.log(approveGas, "approveGas");
-      setApproveGasUsed(approveGas);
+    try {
+      const _caver = new Caver(klaytn);
 
-      const multisendGas = await estimateGas(multisendTransaction);
-      console.log(multisendGas, "multisendGas");
-      setMultisendGasUsed(multisendGas);
+      console.log(await _caver.rpc.net.getNetworkId());
+      const price = await getGasPrice(_caver);
+      console.log(price, "price");
 
-      const totalGas = approveGas + multisendGas;
-      console.log(totalGas, "totalGas");
-      const estimatedFeeInPeb = BigInt(totalGas) * BigInt(price);
-      console.log(estimatedFeeInPeb, "estimatedFeeInPeb");
-      const estimatedFeeInKlay = caver.utils.fromPeb(
-        estimatedFeeInPeb.toString(),
-        "KLAY"
+      const { approveTransaction, multisendTransaction } =
+        await createTransactions();
+      console.log(
+        approveTransaction,
+        multisendTransaction,
+        "approveTransaction, multisendTransaction"
       );
-      console.log(estimatedFeeInKlay, "estimatedFeeInKlay");
-      setTotalFee(estimatedFeeInKlay);
+
+      if (approveTransaction && multisendTransaction) {
+        const approveGas = await estimateGas(approveTransaction, caver);
+        console.log(approveGas, "approveGas");
+
+        setApproveGasUsed(approveGas);
+
+        const multisendGas = await estimateGas(multisendTransaction, caver);
+        console.log(multisendGas, "multisendGas");
+        setMultisendGasUsed(multisendGas);
+
+        const totalGas = approveGas + multisendGas;
+        console.log(totalGas, "totalGas");
+        const estimatedFeeInPeb = BigInt(totalGas) * BigInt(price);
+        console.log(estimatedFeeInPeb, "estimatedFeeInPeb");
+        const estimatedFeeInKlay = caver.utils.fromPeb(
+          estimatedFeeInPeb.toString(),
+          "KLAY"
+        );
+        console.log(estimatedFeeInKlay, "estimatedFeeInKlay");
+        setTotalFee(estimatedFeeInKlay);
+      }
+    } catch (error) {
+      alert("예상수수료 측정중 오류발생");
     }
   };
 
   const createTransactions = async () => {
+    alert("web3방식");
     const web3 = new Web3(klaytn);
 
     const tokenContract = new web3.eth.Contract(
@@ -170,7 +184,7 @@ const Home = (): ReactElement => {
       targetTokenAddress!
     );
     const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
-    const multisenderContract = new web3.eth.Contract(
+    const multisenderContract = new caver.klay.Contract(
       multiSenderABI as any,
       multisenderAddress
     );
@@ -187,6 +201,7 @@ const Home = (): ReactElement => {
 
     const totalAmount = amounts.reduce((acc, cur) => acc + cur, BigInt(0));
 
+    const price = await caver.klay.getGasPrice();
     // Approve transaction object
     const approveTransaction = {
       from: account,
@@ -194,6 +209,7 @@ const Home = (): ReactElement => {
       data: tokenContract.methods
         .approve(multisenderAddress, totalAmount.toString())
         .encodeABI(),
+      gas: price,
     };
 
     // Multisend transaction object
@@ -203,6 +219,7 @@ const Home = (): ReactElement => {
       data: multisenderContract.methods
         .multisendToken(targetTokenAddress, recipientAddresses, amounts)
         .encodeABI(),
+      gas: price,
     };
 
     return { approveTransaction, multisendTransaction };
@@ -413,7 +430,7 @@ const Home = (): ReactElement => {
             {csvData.length > 0 && (
               <div className="send-layer">
                 <div>
-                  <button onClick={calculateFee}>예상 수수료 계산</button>
+                  <button onClick={calculateFee}>예상 수수료 계산 web3</button>
 
                   {feeLoading ? (
                     <>
@@ -433,7 +450,7 @@ const Home = (): ReactElement => {
                   )}
                 </div>
                 <button className="send-button" onClick={handleSendTokens}>
-                  전송하기
+                  전송하기 웹3
                 </button>
               </div>
             )}
