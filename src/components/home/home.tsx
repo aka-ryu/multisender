@@ -144,7 +144,8 @@ const Home = (): ReactElement => {
         testTokenABI as any,
         targetTokenAddress!
       );
-      const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+      // const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+      const multisenderAddress = "0x13d2F94261C4883612a100821196193A3FaA8D14";
       const multisenderContract = new caver.klay.Contract(
         multiSenderABI as any,
         multisenderAddress
