@@ -131,7 +131,8 @@ const Home = (): ReactElement => {
 
     const multisenderABI = multiSenderABI;
 
-    const multisenderAddress = "0x443af9ec99f513a7af11804011f50409dc279acb"; // 배포한 멀티샌더 컨트랙트 주소로 변경
+    const multisenderAddress = process.env.REACT_APP_MULTISENDER_CONTRACT;
+    console.log(multisenderAddress);
 
     const multisenderContract = new web3.eth.Contract(
       multisenderABI as any,
@@ -185,7 +186,11 @@ const Home = (): ReactElement => {
             <div className="main-token-balance">{balance} KLAY</div>
           </div>
           <div className="transfer-layer">
-            <label htmlFor="inputField">전송할 토큰의 계약주소</label>
+            <h4>
+              멀티샌더 컨트랙트 {process.env.REACT_APP_TARGET_MULTISENDER_CHAIN}{" "}
+              {process.env.REACT_APP_MULTISENDER_CONTRACT}
+            </h4>
+            <label htmlFor="inputField">토큰의 계약주소 입력</label>
             <input
               className="token-address-input"
               type="text"
