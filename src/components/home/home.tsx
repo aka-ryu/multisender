@@ -44,6 +44,7 @@ const Home = (): ReactElement => {
   const [transferResult, setTransferResult] = useState<string | undefined>(
     undefined
   );
+  const [fileName, setFileName] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -304,6 +305,8 @@ const Home = (): ReactElement => {
   const handleFileUpload = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
+      console.log(file);
+      setFileName(file!.name);
       if (file) {
         const reader = new FileReader();
         reader.onload = () => {
@@ -419,6 +422,11 @@ const Home = (): ReactElement => {
   const handleSendTokens = async () => {
     if (!account || !targetTokenAddress || !klaytn || recipients.length === 0) {
       alert("Kaikas 지갑연결, 토큰계약주소, csv데이터에 문제가 있습니다.");
+      return;
+    }
+
+    if (!caver.utils.isAddress(targetTokenAddress)) {
+      alert("토큰 계약주소가 올바르지 않습니다.");
       return;
     }
     const web3 = new Web3(window.klaytn);
@@ -575,7 +583,7 @@ const Home = (): ReactElement => {
                   )}
                 </div>
                 {transferResult ? (
-                  <p>{transferResult}</p>
+                  <p className="result">{transferResult}</p>
                 ) : (
                   <>
                     <button className="send-button" onClick={handleSendTokens}>
@@ -587,7 +595,7 @@ const Home = (): ReactElement => {
             )}
 
             <div>
-              <h3>CSV Upload</h3>
+              <h3>{fileName && `파일명 : ${fileName}`}</h3>
               {csvData.length > 0 ? (
                 <>
                   <button onClick={handleReset}>초기화(새로고침)</button>
@@ -606,7 +614,8 @@ const Home = (): ReactElement => {
                   {invaildData.length > 0 && (
                     <>
                       <h4 className="invaild-target">
-                        잘못된 대상 : {invaildData.length}명
+                        잘못된 대상 : {invaildData.length}명 (지갑주소 혹은
+                        수량)
                       </h4>
                       <ul>
                         {invaildData.map((row, index) => (
