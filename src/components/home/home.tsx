@@ -41,6 +41,9 @@ const Home = (): ReactElement => {
   const [multisendGasUsed, setMultisendGasUsed] = useState<number>(0);
   const [totalFee, setTotalFee] = useState<string>("0");
   const [feeLoading, setFeeLoading] = useState<boolean>(false);
+  const [transferResult, setTransferResult] = useState<string | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -461,9 +464,11 @@ const Home = (): ReactElement => {
         .multisendToken(targetTokenAddress, recipientAddresses, amounts)
         .send({ from: account });
       console.log("Transaction successful:", result);
+      setTransferResult("성공");
       alert("Transaction successful");
     } catch (error) {
       console.error("Transaction failed:", error);
+      setTransferResult("실패");
       alert("Transaction failed");
     }
   };
@@ -569,9 +574,15 @@ const Home = (): ReactElement => {
                     </>
                   )}
                 </div>
-                <button className="send-button" onClick={handleSendTokens}>
-                  전송하기 웹3
-                </button>
+                {transferResult ? (
+                  <p>{transferResult}</p>
+                ) : (
+                  <>
+                    <button className="send-button" onClick={handleSendTokens}>
+                      전송하기
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
