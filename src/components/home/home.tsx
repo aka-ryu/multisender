@@ -124,8 +124,9 @@ const Home = (): ReactElement => {
   };
 
   const estimateGas = async (transaction: any, _caver: Caver) => {
-    const estimatedGas = await _caver.klay.estimateGas(transaction);
-    return estimatedGas;
+    const web3 = new Web3(klaytn);
+    const estimatedGas = await web3.eth.estimateGas(transaction);
+    return Number(estimatedGas);
   };
 
   const calculateFee = async () => {
@@ -198,10 +199,6 @@ const Home = (): ReactElement => {
 
         setApproveGasUsed(approveGas);
 
-        const multisendGas2 = await multisenderContract.methods
-          .multisendToken(targetTokenAddress, recipientAddresses, amounts)
-          .estimateGas({ from: account });
-        console.log(multisendGas2, " multisendGas2");
         const multisendGas = await estimateGas(multisendTransaction, caver);
         console.log(multisendGas, "multisendGas");
         setMultisendGasUsed(multisendGas);
