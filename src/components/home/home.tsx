@@ -426,31 +426,31 @@ const Home = (): ReactElement => {
       alert("토큰 계약주소가 올바르지 않습니다.");
       return;
     }
-    const web3 = new Web3(window.klaytn);
-
-    const tokenContractABI = testTokenABI;
-
-    const tokenContract = new web3.eth.Contract(
-      tokenContractABI as any,
-      targetTokenAddress
-    );
-
-    const multisenderABI = multiSenderABI;
-
-    const multisenderAddress =
-      klaytn.networkVersion == "1001"
-        ? "0x443af9ec99f513a7af11804011f50409dc279acb"
-        : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
-
-    const multisenderContract = new web3.eth.Contract(
-      multisenderABI as any,
-      multisenderAddress
-    );
-
-    const decimalsStr = await tokenContract.methods.decimals().call();
-    const decimals = Number(decimalsStr);
 
     try {
+      const web3 = new Web3(window.klaytn);
+
+      const tokenContractABI = testTokenABI;
+
+      const tokenContract = new web3.eth.Contract(
+        tokenContractABI as any,
+        targetTokenAddress
+      );
+
+      const multisenderABI = multiSenderABI;
+
+      const multisenderAddress =
+        klaytn.networkVersion == "1001"
+          ? "0x443af9ec99f513a7af11804011f50409dc279acb"
+          : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
+
+      const multisenderContract = new web3.eth.Contract(
+        multisenderABI as any,
+        multisenderAddress
+      );
+
+      const decimalsStr = await tokenContract.methods.decimals().call();
+      const decimals = Number(decimalsStr);
       const recipientAddresses = recipients.map((row) => row[0]);
       const amounts = recipients.map((row) => {
         const amount = BigInt(row[1]); // 문자열을 BigInt로 변환
