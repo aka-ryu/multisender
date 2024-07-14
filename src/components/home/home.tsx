@@ -79,19 +79,16 @@ const Home = (): ReactElement => {
     // if (typeof window.klaytn !== "undefined") {
     // Kaikas가 설치된 경우에만 이벤트 리스너 등록
     klaytn.on("accountsChanged", function (accounts: any) {
-      console.log("계정변경 감지");
       const _selectedAddress = klaytn.selectedAddress;
       setAccount(_selectedAddress);
       getKlaytnBalance(_selectedAddress);
     });
     klaytn.on("networkChanged", function (networkId: any) {
-      console.log("서버변경 감지");
       setChainId(klaytn.networkVersion);
       getKlaytnBalance(klaytn.selectedAddress);
       setCaverInstance(window.klaytn);
     });
     klaytn.on("disconnected", function () {
-      console.log("kaikas 잠금");
       setIsKaikasLogin(false);
     });
   }
@@ -163,8 +160,6 @@ const Home = (): ReactElement => {
           ? "0x443af9ec99f513a7af11804011f50409dc279acb"
           : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
 
-      console.log(multisenderAddress);
-
       const multisenderContract = new web3.eth.Contract(
         multiSenderABI as any,
         multisenderAddress
@@ -172,8 +167,6 @@ const Home = (): ReactElement => {
 
       const decimalsStr = await tokenContract.methods.decimals().call();
       const decimals = Number(decimalsStr);
-
-      console.log(recipients.length);
 
       const recipientAddresses = recipients.map((row) => row[0]);
       const amounts = recipients.map((row) => {
@@ -247,7 +240,6 @@ const Home = (): ReactElement => {
           ? "0x443af9ec99f513a7af11804011f50409dc279acb"
           : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
 
-      console.log(multisenderAddress);
       const multisenderContract = new _caver.contract(
         multiSenderABI as any,
         multisenderAddress
@@ -374,7 +366,6 @@ const Home = (): ReactElement => {
 
   const getKlaytnBalance = async (_walletAddress: any) => {
     if (!klaytn) return;
-    console.log("실행한다ㅏ");
 
     klaytn.sendAsync(
       {
@@ -387,13 +378,10 @@ const Home = (): ReactElement => {
         if (err) {
           console.error("Error fetching balance:", err);
         } else {
-          console.log("dd?");
           const _balance = Web3.utils.fromWei(result.result, "ether");
           if (Number(_balance) > 0) {
-            console.log("돈있어");
             setBalance(_balance);
           } else {
-            console.log("돈없어");
             setBalance("0");
           }
         }
@@ -454,7 +442,6 @@ const Home = (): ReactElement => {
         ? "0x443af9ec99f513a7af11804011f50409dc279acb"
         : "0x74EaFC3fD55f8DFF6dB22bCd1Bf59428b2161E90";
 
-    console.log(multisenderAddress);
     const multisenderContract = new web3.eth.Contract(
       multisenderABI as any,
       multisenderAddress
@@ -480,7 +467,6 @@ const Home = (): ReactElement => {
       const result = await multisenderContract.methods
         .multisendToken(targetTokenAddress, recipientAddresses, amounts)
         .send({ from: account });
-      console.log("Transaction successful:", result);
       setTxHash(result.transactionHash);
       const targetScope =
         klaytn.networkVersion == "8217"
