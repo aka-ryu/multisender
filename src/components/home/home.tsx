@@ -521,7 +521,7 @@ const Home = (): ReactElement => {
             />
             {csvData.length > 0 && (
               <div className="send-layer">
-                <div>
+                {/* <div>
                   <button onClick={calculateFeeWeb3}>
                     예상 수수료 계산 web3
                   </button>
@@ -582,7 +582,7 @@ const Home = (): ReactElement => {
                       </p>
                     </>
                   )}
-                </div>
+                </div> */}
                 {transferResult ? (
                   <>
                     <p className="result">{transferResult}</p>
